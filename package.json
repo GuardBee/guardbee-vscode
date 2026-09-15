@@ -1,0 +1,137 @@
+{
+  "name": "guardbee-vscode",
+  "displayName": "GuardBee",
+  "description": "Inline security/compliance diagnostics from GuardBee's local scanners, plus GuardBee.ai dashboard scan integration.",
+  "version": "0.1.0",
+  "publisher": "guardbee-ai",
+  "private": true,
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Linters",
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "guardbee.scanCurrentFile",
+        "title": "GuardBee: Scan Current File"
+      },
+      {
+        "command": "guardbee.scanWorkspace",
+        "title": "GuardBee: Scan Workspace"
+      },
+      {
+        "command": "guardbee.setApiKey",
+        "title": "GuardBee: Set API Key"
+      },
+      {
+        "command": "guardbee.clearApiKey",
+        "title": "GuardBee: Clear API Key"
+      },
+      {
+        "command": "guardbee.triggerRemoteScan",
+        "title": "GuardBee: Trigger Remote Scan"
+      },
+      {
+        "command": "guardbee.showRecentScans",
+        "title": "GuardBee: Show Recent Scans"
+      }
+    ],
+    "configuration": {
+      "title": "GuardBee",
+      "properties": {
+        "guardbee.enabledScanners": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "secret-scanner",
+              "ai-code-scanner",
+              "mcp-server-auditor",
+              "prompt-injection-scanner"
+            ]
+          },
+          "default": [
+            "secret-scanner",
+            "ai-code-scanner",
+            "mcp-server-auditor",
+            "prompt-injection-scanner"
+          ],
+          "description": "Local scanners to run on save / on demand."
+        },
+        "guardbee.scanOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run local scanners automatically when a file is saved."
+        },
+        "guardbee.severityThreshold": {
+          "type": "string",
+          "enum": [
+            "critical",
+            "high",
+            "medium",
+            "low"
+          ],
+          "default": "low",
+          "description": "Minimum severity to report as a diagnostic."
+        },
+        "guardbee.apiBaseUrl": {
+          "type": "string",
+          "default": "https://app.guardbee.ai/api/v1",
+          "description": "Base URL for the GuardBee dashboard API (override for local development)."
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "guardbee",
+          "title": "GuardBee",
+          "icon": "media/guardbee.svg"
+        }
+      ]
+    },
+    "views": {
+      "guardbee": [
+        {
+          "id": "guardbeeLocalFindings",
+          "name": "Local Findings"
+        },
+        {
+          "id": "guardbeeRemoteScans",
+          "name": "Remote Scans"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "compile": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "compile-tests": "tsc -p . --outDir out",
+    "pretest": "npm run compile && npm run compile-tests",
+    "test": "vscode-test",
+    "vscode:prepublish": "npm run compile"
+  },
+  "dependencies": {
+    "@guardbee/mcp-secret-scanner": "^0.2.2",
+    "@guardbee/mcp-ai-code-scanner": "^0.2.2",
+    "@guardbee/mcp-server-auditor": "^0.1.2",
+    "@guardbee/mcp-prompt-injection-scanner": "^0.1.2",
+    "minimatch": "^9.0.5",
+    "yaml": "^2.5.1"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.7",
+    "@types/node": "^20.14.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.4.0",
+    "esbuild": "^0.23.0",
+    "mocha": "^10.7.0",
+    "typescript": "^5.5.4"
+  }
+}
