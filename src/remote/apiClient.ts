@@ -23,7 +23,7 @@ export async function apiRequest<T>(
 ): Promise<T> {
   const apiKey = await getApiKey(context);
   if (!apiKey) {
-    throw new GuardbeeApiError("No GuardBee API key configured. Run 'GuardBee: Set API Key' first.", 401);
+    throw new GuardbeeApiError("No GuardBee account connected. Run 'GuardBee: Connect Account' first.", 401);
   }
 
   const url = `${getBaseUrl()}${path}`;

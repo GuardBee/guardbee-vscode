@@ -2,11 +2,18 @@
   "name": "guardbee-vscode",
   "displayName": "GuardBee",
   "icon": "media/icon.png",
-  "description": "Inline security/compliance diagnostics from GuardBee's local scanners, plus GuardBee.ai dashboard scan integration.",
+  "description": "Review GuardBee findings in the editor and run dashboard scans from the sidebar.",
   "version": "0.1.0",
   "publisher": "guardbee-ai",
-  "private": true,
-  "license": "UNLICENSED",
+  "license": "MIT",
+  "homepage": "https://github.com/GuardBee/guardbee-vscode#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GuardBee/guardbee-vscode.git"
+  },
+  "bugs": {
+    "url": "https://github.com/GuardBee/guardbee-vscode/issues"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -14,6 +21,15 @@
     "Linters",
     "Other"
   ],
+  "keywords": [
+    "guardbee",
+    "linter",
+    "diagnostics"
+  ],
+  "galleryBanner": {
+    "color": "#0B1C2C",
+    "theme": "dark"
+  },
   "activationEvents": [
     "onStartupFinished"
   ],
@@ -29,12 +45,12 @@
         "title": "GuardBee: Scan Workspace"
       },
       {
-        "command": "guardbee.setApiKey",
-        "title": "GuardBee: Set API Key"
+        "command": "guardbee.connect",
+        "title": "GuardBee: Connect Account"
       },
       {
-        "command": "guardbee.clearApiKey",
-        "title": "GuardBee: Clear API Key"
+        "command": "guardbee.disconnect",
+        "title": "GuardBee: Disconnect"
       },
       {
         "command": "guardbee.triggerRemoteScan",
@@ -51,26 +67,14 @@
         "guardbee.enabledScanners": {
           "type": "array",
           "items": {
-            "type": "string",
-            "enum": [
-              "secret-scanner",
-              "ai-code-scanner",
-              "mcp-server-auditor",
-              "prompt-injection-scanner"
-            ]
+            "type": "string"
           },
-          "default": [
-            "secret-scanner",
-            "ai-code-scanner",
-            "mcp-server-auditor",
-            "prompt-injection-scanner"
-          ],
-          "description": "Local scanners to run on save / on demand."
+          "description": "Local analyzers to run on save or on demand."
         },
         "guardbee.scanOnSave": {
           "type": "boolean",
           "default": true,
-          "description": "Run local scanners automatically when a file is saved."
+          "description": "Run local analysis automatically when a file is saved."
         },
         "guardbee.severityThreshold": {
           "type": "string",
@@ -86,7 +90,7 @@
         "guardbee.apiBaseUrl": {
           "type": "string",
           "default": "https://app.guardbee.ai/api/v1",
-          "description": "Base URL for the GuardBee dashboard API (override for local development)."
+          "description": "GuardBee dashboard endpoint."
         }
       }
     },
@@ -118,18 +122,15 @@
     "compile-tests": "tsc -p . --outDir out",
     "pretest": "npm run compile && npm run compile-tests",
     "test": "vscode-test",
-    "package": "vsce package --no-dependencies --allow-missing-repository",
+    "package": "node scripts/package-vsix.js",
+    "publish:marketplace": "node scripts/package-vsix.js --publish",
     "vscode:prepublish": "npm run compile"
   },
-  "dependencies": {
-    "@guardbee/mcp-secret-scanner": "^0.2.2",
-    "@guardbee/mcp-ai-code-scanner": "^0.2.2",
-    "@guardbee/mcp-server-auditor": "^0.1.2",
-    "@guardbee/mcp-prompt-injection-scanner": "^0.1.2",
-    "minimatch": "^9.0.5",
-    "yaml": "^2.5.1"
-  },
   "devDependencies": {
+    "@guardbee/mcp-ai-code-scanner": "^0.2.2",
+    "@guardbee/mcp-prompt-injection-scanner": "^0.1.2",
+    "@guardbee/mcp-secret-scanner": "^0.2.2",
+    "@guardbee/mcp-server-auditor": "^0.1.2",
     "@types/mocha": "^10.0.7",
     "@types/node": "^20.14.0",
     "@types/vscode": "^1.85.0",
@@ -137,7 +138,9 @@
     "@vscode/test-electron": "^2.4.0",
     "@vscode/vsce": "^3.2.1",
     "esbuild": "^0.23.0",
+    "minimatch": "^9.0.5",
     "mocha": "^10.7.0",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "yaml": "^2.5.1"
   }
 }

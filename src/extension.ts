@@ -135,8 +135,8 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("guardbee.setApiKey", () => setApiKey(context)),
-    vscode.commands.registerCommand("guardbee.clearApiKey", () => clearApiKey(context))
+    vscode.commands.registerCommand("guardbee.connect", () => setApiKey(context)),
+    vscode.commands.registerCommand("guardbee.disconnect", () => clearApiKey(context))
   );
 
   context.subscriptions.push(
@@ -224,9 +224,9 @@ export function activate(context: vscode.ExtensionContext): void {
 function handleRemoteError(err: unknown): void {
   if (err instanceof GuardbeeApiError && err.status === 401) {
     vscode.window
-      .showErrorMessage("GuardBee: no API key configured.", "Set API Key")
+      .showErrorMessage("GuardBee: no account connected.", "Connect Account")
       .then((choice) => {
-        if (choice === "Set API Key") vscode.commands.executeCommand("guardbee.setApiKey");
+        if (choice === "Connect Account") vscode.commands.executeCommand("guardbee.connect");
       });
     return;
   }
