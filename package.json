@@ -1,10 +1,12 @@
 {
   "name": "guardbee-vscode",
   "displayName": "GuardBee",
+  "icon": "media/icon.png",
   "description": "Inline security/compliance diagnostics from GuardBee's local scanners, plus GuardBee.ai dashboard scan integration.",
   "version": "0.1.0",
   "publisher": "guardbee-ai",
   "private": true,
+  "license": "UNLICENSED",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -12,7 +14,9 @@
     "Linters",
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
@@ -114,6 +118,7 @@
     "compile-tests": "tsc -p . --outDir out",
     "pretest": "npm run compile && npm run compile-tests",
     "test": "vscode-test",
+    "package": "vsce package --no-dependencies --allow-missing-repository",
     "vscode:prepublish": "npm run compile"
   },
   "dependencies": {
@@ -130,6 +135,7 @@
     "@types/vscode": "^1.85.0",
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.0",
+    "@vscode/vsce": "^3.2.1",
     "esbuild": "^0.23.0",
     "mocha": "^10.7.0",
     "typescript": "^5.5.4"
