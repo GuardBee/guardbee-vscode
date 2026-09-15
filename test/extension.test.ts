@@ -11,6 +11,7 @@ suite("GuardBee extension", () => {
     const expected = [
       "guardbee.scanCurrentFile",
       "guardbee.scanWorkspace",
+      "guardbee.scanAgentSurface",
       "guardbee.connect",
       "guardbee.disconnect",
       "guardbee.triggerRemoteScan",

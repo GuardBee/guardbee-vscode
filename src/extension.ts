@@ -11,8 +11,9 @@ import { RemoteScan } from "./remote/types";
 import { addAllowlistEntry } from "./scanners/config";
 import { NormalizedFinding, ScannerId } from "./scanners/types";
 import { disableNextLineComment } from "./scanners/suppress";
-import { getWorkspaceRoot, scanDocument, scanWorkspace } from "./scanners/run";
+import { getWorkspaceRoot, scanAgentSurface, scanDocument, scanWorkspace } from "./scanners/run";
 import { GuardBeeStatusBar } from "./statusBar";
+import { AgentSurfaceProvider } from "./views/agentSurfaceProvider";
 import { LocalFindingsProvider } from "./views/localFindingsProvider";
 import { RemoteScansProvider } from "./views/remoteScansProvider";
 
@@ -21,6 +22,7 @@ const DASHBOARD_URL = "https://app.guardbee.ai";
 export function activate(context: vscode.ExtensionContext): void {
   const diagnostics = new DiagnosticsManager();
   const localFindingsProvider = new LocalFindingsProvider(diagnostics);
+  const agentSurfaceProvider = new AgentSurfaceProvider(diagnostics);
   const remoteScansProvider = new RemoteScansProvider();
   const statusBar = new GuardBeeStatusBar();
 
@@ -28,6 +30,7 @@ export function activate(context: vscode.ExtensionContext): void {
     diagnostics,
     statusBar,
     vscode.window.registerTreeDataProvider("guardbeeLocalFindings", localFindingsProvider),
+    vscode.window.registerTreeDataProvider("guardbeeAgentSurface", agentSurfaceProvider),
     vscode.window.registerTreeDataProvider("guardbeeRemoteScans", remoteScansProvider),
     vscode.languages.registerCodeActionsProvider(
       { scheme: "file" },
@@ -42,6 +45,7 @@ export function activate(context: vscode.ExtensionContext): void {
     await vscode.commands.executeCommand("setContext", "guardbee.connected", connected);
     statusBar.update(diagnostics.count(), connected);
     localFindingsProvider.refresh();
+    agentSurfaceProvider.refresh();
   }
 
   async function scanAndSync(document: vscode.TextDocument): Promise<void> {
@@ -129,6 +133,37 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand("guardbee.scanAgentSurface", async () => {
+      if (!getWorkspaceRoot()) {
+        vscode.window.showWarningMessage("GuardBee: open a folder to scan Cursor and MCP files.");
+        return;
+      }
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: "GuardBee: scanning Cursor and MCP files",
+          cancellable: true,
+        },
+        async (progress, token) => {
+          try {
+            const findings = await scanAgentSurface(diagnostics, token, (message) => progress.report({ message }));
+            await syncUi();
+            const files = new Set(findings.map((f) => f.file).filter(Boolean));
+            vscode.window.showInformationMessage(
+              `GuardBee: Cursor/MCP scan complete — ${findings.length} finding(s) in ${files.size} file(s).`
+            );
+            vscode.commands.executeCommand("guardbeeAgentSurface.focus").then(undefined, () => undefined);
+          } catch (err) {
+            if (!token.isCancellationRequested) {
+              vscode.window.showErrorMessage(`GuardBee Cursor/MCP scan failed: ${(err as Error).message}`);
+            }
+          }
+        }
+      );
+    })
+  );
+
+  context.subscriptions.push(
     vscode.commands.registerCommand("guardbee.connect", async () => {
       await setApiKey(context);
       await syncUi();
@@ -183,7 +218,14 @@ export function activate(context: vscode.ExtensionContext): void {
 
       const ENTER_URL = "$(edit) Enter a URL manually…";
       const pick = await vscode.window.showQuickPick(
-        [...brands.map((b) => ({ label: b.domain ?? b.name ?? b.id, id: b.id })), { label: ENTER_URL, id: undefined }],
+        [
+          ...brands.map((b) => ({
+            label: b.name ?? b.domain ?? b.url ?? b.id,
+            description: b.url ?? b.domain,
+            id: b.id,
+          })),
+          { label: ENTER_URL, id: undefined },
+        ],
         { title: "GuardBee: choose a target to scan" }
       );
       if (!pick) return;
@@ -253,6 +295,11 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   void syncUi();
+  if (vscode.workspace.getConfiguration("guardbee").get<boolean>("scanAgentSurfaceOnStartup", true)) {
+    void scanAgentSurface(diagnostics)
+      .then(() => syncUi())
+      .catch(() => undefined);
+  }
 }
 
 function handleRemoteError(err: unknown): void {

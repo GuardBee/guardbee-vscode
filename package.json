@@ -3,7 +3,7 @@
   "displayName": "GuardBee",
   "icon": "media/icon.png",
   "description": "Review findings in the editor, run dashboard jobs from the sidebar, and let agents check code before saving.",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "publisher": "guardbee-ai",
   "license": "MIT",
   "homepage": "https://github.com/GuardBee/guardbee-vscode#readme",
@@ -49,6 +49,11 @@
         "icon": "$(folder)"
       },
       {
+        "command": "guardbee.scanAgentSurface",
+        "title": "GuardBee: Scan Cursor and MCP Files",
+        "icon": "$(robot)"
+      },
+      {
         "command": "guardbee.connect",
         "title": "GuardBee: Connect Account",
         "icon": "$(plug)"
@@ -89,6 +94,11 @@
           "default": true,
           "description": "Run local analysis automatically when a file is saved."
         },
+        "guardbee.scanAgentSurfaceOnStartup": {
+          "type": "boolean",
+          "default": true,
+          "description": "Scan Cursor rules, MCP configs, skills, and hooks when the window opens."
+        },
         "guardbee.severityThreshold": {
           "type": "string",
           "enum": [
@@ -123,6 +133,10 @@
           "name": "Local Findings"
         },
         {
+          "id": "guardbeeAgentSurface",
+          "name": "Cursor / MCP"
+        },
+        {
           "id": "guardbeeRemoteScans",
           "name": "Remote Scans"
         }
@@ -132,6 +146,10 @@
       {
         "view": "guardbeeLocalFindings",
         "contents": "No local findings yet. Save a file or run a scan.\n[Scan Current File](command:guardbee.scanCurrentFile)\n[Scan Workspace](command:guardbee.scanWorkspace)"
+      },
+      {
+        "view": "guardbeeAgentSurface",
+        "contents": "No Cursor/MCP findings yet.\n[Scan Cursor and MCP Files](command:guardbee.scanAgentSurface)"
       },
       {
         "view": "guardbeeRemoteScans",
@@ -155,6 +173,11 @@
           "command": "guardbee.scanWorkspace",
           "when": "view == guardbeeLocalFindings",
           "group": "navigation@2"
+        },
+        {
+          "command": "guardbee.scanAgentSurface",
+          "when": "view == guardbeeAgentSurface",
+          "group": "navigation@1"
         },
         {
           "command": "guardbee.connect",
@@ -282,6 +305,19 @@
             }
           }
         }
+      },
+      {
+        "name": "guardbee_scan_agent_surface",
+        "displayName": "GuardBee: Scan Cursor and MCP Files",
+        "toolReferenceName": "guardbeeScanCursorMcp",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(robot)",
+        "userDescription": "Scan MCP configs, Cursor rules, agent skills, and hooks.",
+        "modelDescription": "Scan the workspace agent surface: mcp.json, .cursor/rules, agent skills, and Cursor hooks. Use when the user asks about MCP configs, Cursor rules, skills, or hooks, or whether those files contain prompt-override phrases or leaked credentials. Workspace scan skips hidden folders like .cursor, so this tool is required for that surface. Returns locations and recommendations only, no secret values.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
       }
     ],
     "chatParticipants": [
@@ -289,7 +325,7 @@
         "id": "guardbee.chat",
         "fullName": "GuardBee",
         "name": "guardbee",
-        "description": "Scan the current file or workspace with GuardBee",
+        "description": "Scan the current file, workspace, or Cursor/MCP files with GuardBee",
         "isSticky": true,
         "commands": [
           {
@@ -299,6 +335,10 @@
           {
             "name": "workspace",
             "description": "Scan the open workspace"
+          },
+          {
+            "name": "surface",
+            "description": "Scan MCP configs, Cursor rules, skills, and hooks"
           }
         ]
       }

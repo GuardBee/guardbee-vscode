@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { DiagnosticsManager } from "../diagnostics/manager";
 import { ScannerId } from "../scanners/types";
-import { getEnabledScanners, getWorkspaceRoot, scanDocument, scanFilePath, scanTextBuffer, scanWorkspace } from "../scanners/run";
+import { getEnabledScanners, getWorkspaceRoot, scanAgentSurface, scanDocument, scanFilePath, scanTextBuffer, scanWorkspace } from "../scanners/run";
 import { parseScannerFilter, resolveWorkspacePath } from "../scanners/resolve";
 import { agentResultToMarkdown, toAgentScanResult } from "./format";
 
@@ -9,9 +9,10 @@ export const TOOL = {
   scanFile: "guardbee_scan_file",
   scanWorkspace: "guardbee_scan_workspace",
   checkCode: "guardbee_check_code",
+  scanAgentSurface: "guardbee_scan_agent_surface",
 } as const;
 
-export const ALL_TOOL_NAMES = [TOOL.scanFile, TOOL.scanWorkspace, TOOL.checkCode] as const;
+export const ALL_TOOL_NAMES = [TOOL.scanFile, TOOL.scanWorkspace, TOOL.checkCode, TOOL.scanAgentSurface] as const;
 
 interface ScanFileInput {
   path?: string;
@@ -119,19 +120,42 @@ export function registerLanguageModelTools(
         }
         return resultPart(findings);
       },
+    }),
+    vscode.lm.registerTool(TOOL.scanAgentSurface, {
+      prepareInvocation() {
+        return {
+          invocationMessage: "Scanning Cursor and MCP files with GuardBee",
+          confirmationMessages: {
+            title: "GuardBee: scan Cursor and MCP files",
+            message: new vscode.MarkdownString(
+              "Scan MCP configs, Cursor rules, agent skills, and hooks with GuardBee?"
+            ),
+          },
+        };
+      },
+      async invoke(_options, token) {
+        const findings = await scanAgentSurface(diagnostics, token);
+        await syncUi();
+        return resultPart(findings);
+      },
     })
   );
 }
 
 /** Used by the chat participant and tests. */
 export async function runChatScan(
-  kind: "file" | "workspace",
+  kind: "file" | "workspace" | "surface",
   diagnostics: DiagnosticsManager,
   syncUi: () => Promise<void>,
   token?: vscode.CancellationToken
 ): Promise<string> {
   if (kind === "workspace") {
     const findings = await scanWorkspace(diagnostics, getEnabledScanners(), token);
+    await syncUi();
+    return agentResultToMarkdown(toAgentScanResult(findings, getWorkspaceRoot()));
+  }
+  if (kind === "surface") {
+    const findings = await scanAgentSurface(diagnostics, token);
     await syncUi();
     return agentResultToMarkdown(toAgentScanResult(findings, getWorkspaceRoot()));
   }

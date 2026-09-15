@@ -1,34 +1,35 @@
 import * as vscode from "vscode";
 import { apiRequest } from "./apiClient";
-import { Envelope, RemoteBrand, RemoteFinding, RemoteScan, TERMINAL_STATUSES } from "./types";
+import { unwrapArray, unwrapData } from "./envelope";
+import { RemoteBrand, RemoteFinding, RemoteScan, TERMINAL_STATUSES } from "./types";
 
 const POLL_INTERVAL_MS = 5000;
 const POLL_TIMEOUT_MS = 900_000; // 15 minutes, mirrors apify actor's default maxWaitSecs
 
 export async function listBrands(context: vscode.ExtensionContext): Promise<RemoteBrand[]> {
-  const res = await apiRequest<Envelope<RemoteBrand[]>>(context, "/domains");
-  return res.data;
+  const res = await apiRequest<unknown>(context, "/domains");
+  return unwrapArray<RemoteBrand>(res);
 }
 
 export async function listScans(context: vscode.ExtensionContext): Promise<RemoteScan[]> {
-  const res = await apiRequest<Envelope<RemoteScan[]>>(context, "/scans");
-  return res.data;
+  const res = await apiRequest<unknown>(context, "/scans");
+  return unwrapArray<RemoteScan>(res);
 }
 
 export async function triggerScan(
   context: vscode.ExtensionContext,
   target: { brandId: string } | { url: string }
 ): Promise<RemoteScan> {
-  const res = await apiRequest<Envelope<RemoteScan>>(context, "/scans", {
+  const res = await apiRequest<unknown>(context, "/scans", {
     method: "POST",
     body: JSON.stringify(target),
   });
-  return res.data;
+  return unwrapData<RemoteScan>(res);
 }
 
 export async function getScan(context: vscode.ExtensionContext, id: string): Promise<RemoteScan> {
-  const res = await apiRequest<Envelope<RemoteScan>>(context, `/scans/${id}`);
-  return res.data;
+  const res = await apiRequest<unknown>(context, `/scans/${id}`);
+  return unwrapData<RemoteScan>(res);
 }
 
 export async function pollScan(
@@ -52,12 +53,13 @@ export async function fetchFindings(context: vscode.ExtensionContext, scanId: st
   const all: RemoteFinding[] = [];
   let page = 1;
   for (;;) {
-    const res = await apiRequest<Envelope<RemoteFinding[]>>(
+    const res = await apiRequest<unknown>(
       context,
       `/findings?scanId=${encodeURIComponent(scanId)}&page=${page}`
     );
-    all.push(...res.data);
-    if (res.data.length === 0) break;
+    const batch = unwrapArray<RemoteFinding>(res);
+    all.push(...batch);
+    if (batch.length === 0) break;
     page += 1;
     if (page > 200) break; // safety cap
   }

@@ -5,7 +5,8 @@ Review GuardBee findings in the editor, run dashboard jobs from the sidebar, and
 ## Features
 
 - **Local findings** — analyze the current file or workspace on save (or on demand). Results appear as editor diagnostics and in the Local Findings view.
-- **Agent tools** — Cursor/VS Code agents can scan a file, scan the workspace, or check unsaved code before saving (`#guardbeeScanFile`, `#guardbeeScanWorkspace`, `#guardbeeCheckCode`, or `@guardbee` in chat).
+- **Cursor / MCP** — dedicated scan for `mcp.json`, `.cursor/rules`, agent skills, and hooks. Workspace directory walks skip hidden folders like `.cursor`, so this surface has its own command, sidebar view, and agent tool.
+- **Agent tools** — Cursor/VS Code agents can scan a file, scan the workspace, check unsaved code, or scan Cursor/MCP files (`#guardbeeScanFile`, `#guardbeeScanWorkspace`, `#guardbeeCheckCode`, `#guardbeeScanCursorMcp`, or `@guardbee` in chat).
 - **Dashboard scans** — start a scan from the GuardBee dashboard and browse results in the Remote Scans view.
 
 ## Setup
@@ -37,6 +38,23 @@ Optional `guardbee.yml` in the workspace root can exclude paths and allowlist kn
 Settings: `guardbee.enabledScanners`, `guardbee.scanOnSave`, `guardbee.severityThreshold`.
 The status bar shows the current finding count; click it to focus Local Findings.
 
+## Cursor / MCP files
+
+Hidden folders such as `.cursor` are skipped by a normal workspace directory walk, so prompt-injection and MCP auditor findings in agent config never showed up there.
+
+**GuardBee: Scan Cursor and MCP Files** (sidebar **Cursor / MCP**, or on window open via `guardbee.scanAgentSurfaceOnStartup`) uses `findFiles` and routes by file kind:
+
+| Kind | Typical paths | Analyzers |
+| --- | --- | --- |
+| MCP config | `.cursor/mcp.json`, `.vscode/mcp.json`, `mcp.json` | credentials, MCP auditor, prompt injection |
+| Rules | `.cursorrules`, `.cursor/rules/**` | credentials, prompt injection |
+| Skills | `.cursor/skills/**`, `.agents/skills/**` | credentials, prompt injection |
+| Hooks | `.cursor/hooks.json`, `.cursor/hooks/**` | credentials, MCP auditor, prompt injection |
+
+Local `./` / `../` MCP entrypoints listed in those configs are scanned with the MCP auditor as well.
+
+Demo fixtures: `examples/cursor-surface/`.
+
 ## Agent tools
 
 In Cursor/VS Code agent chat, GuardBee registers three tools (also referenceable with `#`):
@@ -46,8 +64,9 @@ In Cursor/VS Code agent chat, GuardBee registers three tools (also referenceable
 | `#guardbeeScanFile` | Scan the current file or a path |
 | `#guardbeeScanWorkspace` | Scan the open folder (optional `credential` filter) |
 | `#guardbeeCheckCode` | Check generated/unsaved code before saving |
+| `#guardbeeScanCursorMcp` | Scan MCP configs, Cursor rules, skills, and hooks |
 
-Or chat with **`@guardbee`** / `@guardbee /file` / `@guardbee /workspace`.
+Or chat with **`@guardbee`** / `@guardbee /file` / `@guardbee /workspace` / `@guardbee /surface`.
 
 Tools return locations and recommendations only — they do not send matched credential values to the model. Blocking (critical/high) findings set `canProceed` to false.
 

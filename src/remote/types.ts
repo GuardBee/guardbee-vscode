@@ -2,6 +2,7 @@ export interface RemoteBrand {
   id: string;
   domain?: string;
   name?: string;
+  url?: string;
 }
 
 export type RemoteScanStatus = "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" | "CANCELLED";

@@ -1,11 +1,18 @@
-import { readFileSync } from "fs";
+import { existsSync, readFileSync, statSync } from "fs";
 import * as vscode from "vscode";
 import { DiagnosticsManager } from "../diagnostics/manager";
 import { scanTextWithAll } from "./adapters";
+import {
+  AGENT_SURFACE_GLOBS,
+  classifyAgentSurfacePath,
+  dirnameOf,
+  extractLocalMcpTargets,
+  scannersForAgentSurface,
+} from "./agentSurface";
 import { filterFindings, isExcluded, loadGuardbeeConfig } from "./config";
 import { DEFAULT_WORKSPACE_EXCLUDES, shouldScanContents, shouldScanPath } from "./fileFilter";
 import { filterSuppressedFindings, isSuppressedAt } from "./suppress";
-import { ALL_SCANNER_IDS, NormalizedFinding, ScannerId, Severity } from "./types";
+import { ALL_SCANNER_IDS, ID, NormalizedFinding, ScannerId, Severity } from "./types";
 import { runWorkspaceScan } from "./workspaceScan";
 
 export function getWorkspaceRoot(): string | undefined {
@@ -15,6 +22,12 @@ export function getWorkspaceRoot(): string | undefined {
 export function getEnabledScanners(): ScannerId[] {
   const configured = vscode.workspace.getConfiguration("guardbee").get<ScannerId[]>("enabledScanners");
   return configured && configured.length > 0 ? configured : ALL_SCANNER_IDS;
+}
+
+export function scannersForPath(filePath: string, enabled = getEnabledScanners()): ScannerId[] {
+  const kind = classifyAgentSurfacePath(filePath);
+  if (!kind) return enabled;
+  return scannersForAgentSurface(kind).filter((scanner) => enabled.includes(scanner));
 }
 
 export function getSeverityThreshold(): Severity {
@@ -48,7 +61,7 @@ export async function scanTextBuffer(
 export async function scanDocument(
   document: vscode.TextDocument,
   diagnostics: DiagnosticsManager,
-  scanners = getEnabledScanners()
+  scanners = scannersForPath(document.uri.fsPath)
 ): Promise<NormalizedFinding[]> {
   if (document.uri.scheme !== "file") return [];
   if (!shouldScanContents(document.uri.fsPath, document.getText().length)) {
@@ -63,7 +76,7 @@ export async function scanDocument(
 export async function scanFilePath(
   filePath: string,
   diagnostics: DiagnosticsManager,
-  scanners = getEnabledScanners()
+  scanners = scannersForPath(filePath)
 ): Promise<NormalizedFinding[]> {
   if (!shouldScanPath(filePath)) {
     diagnostics.clearForDocument(vscode.Uri.file(filePath));
@@ -130,8 +143,78 @@ export async function scanWorkspace(
     for (const [filePath, findings] of byFile) {
       diagnostics.setForDocument(vscode.Uri.file(filePath), findings);
     }
-    return suppressed;
+    const surface = await scanAgentSurface(diagnostics, token, onProgress, selected);
+    return dedupeFindings([...suppressed, ...surface]);
   } finally {
     cancel?.dispose();
   }
+}
+
+export async function scanAgentSurface(
+  diagnostics: DiagnosticsManager,
+  token?: vscode.CancellationToken,
+  onProgress?: (message: string) => void,
+  scanners?: ScannerId[]
+): Promise<NormalizedFinding[]> {
+  const root = getWorkspaceRoot();
+  if (!root) {
+    throw new Error("Open a folder to scan Cursor and MCP files.");
+  }
+
+  const exclude = "{**/node_modules/**,**/.git/**,**/.vscode-test/**}";
+  const batches = await Promise.all(
+    AGENT_SURFACE_GLOBS.map((pattern) => vscode.workspace.findFiles(pattern, exclude, 200, token))
+  );
+  const uris = batches.flat();
+  const seen = new Set<string>();
+  const all: NormalizedFinding[] = [];
+  const enabled = scanners && scanners.length > 0 ? scanners : getEnabledScanners();
+
+  for (const uri of uris) {
+    if (token?.isCancellationRequested) break;
+    const kind = classifyAgentSurfacePath(uri.fsPath);
+    if (!kind || seen.has(uri.fsPath)) continue;
+    seen.add(uri.fsPath);
+
+    const selected = scannersForPath(uri.fsPath, enabled);
+    if (selected.length === 0) continue;
+    onProgress?.(uri.fsPath.replace(root, "").replace(/^[\\/]/, "") || uri.fsPath);
+    const findings = await scanFilePath(uri.fsPath, diagnostics, selected);
+    all.push(...findings);
+
+    if (kind !== "mcp-config") continue;
+    let text = "";
+    try {
+      text = readFileSync(uri.fsPath, "utf8");
+    } catch {
+      continue;
+    }
+    for (const target of extractLocalMcpTargets(text, dirnameOf(uri.fsPath))) {
+      if (seen.has(target) || !existsSync(target)) continue;
+      try {
+        if (!statSync(target).isFile()) continue;
+      } catch {
+        continue;
+      }
+      seen.add(target);
+      const localScanners = [ID.mcp, ID.secret, ID.aiCode].filter((scanner) => enabled.includes(scanner));
+      if (localScanners.length === 0) continue;
+      const extra = await scanFilePath(target, diagnostics, localScanners);
+      all.push(...extra);
+    }
+  }
+
+  return all;
+}
+
+function dedupeFindings(findings: NormalizedFinding[]): NormalizedFinding[] {
+  const seen = new Set<string>();
+  const out: NormalizedFinding[] = [];
+  for (const finding of findings) {
+    const key = `${finding.file ?? ""}:${finding.line}:${finding.column}:${finding.scanner}:${finding.patternId}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(finding);
+  }
+  return out;
 }

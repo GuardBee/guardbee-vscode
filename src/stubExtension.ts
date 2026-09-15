@@ -3,6 +3,7 @@ import * as vscode from "vscode";
 const COMMANDS = [
   "guardbee.scanCurrentFile",
   "guardbee.scanWorkspace",
+  "guardbee.scanAgentSurface",
   "guardbee.connect",
   "guardbee.disconnect",
   "guardbee.triggerRemoteScan",
@@ -10,7 +11,7 @@ const COMMANDS = [
   "guardbee.openDashboard",
 ] as const;
 
-const TOOLS = ["guardbee_scan_file", "guardbee_scan_workspace", "guardbee_check_code"] as const;
+const TOOLS = ["guardbee_scan_file", "guardbee_scan_workspace", "guardbee_check_code", "guardbee_scan_agent_surface"] as const;
 
 class EmptyTree implements vscode.TreeDataProvider<vscode.TreeItem> {
   getTreeItem(element: vscode.TreeItem): vscode.TreeItem {
@@ -24,6 +25,7 @@ class EmptyTree implements vscode.TreeDataProvider<vscode.TreeItem> {
 export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.window.registerTreeDataProvider("guardbeeLocalFindings", new EmptyTree()),
+    vscode.window.registerTreeDataProvider("guardbeeAgentSurface", new EmptyTree()),
     vscode.window.registerTreeDataProvider("guardbeeRemoteScans", new EmptyTree())
   );
 

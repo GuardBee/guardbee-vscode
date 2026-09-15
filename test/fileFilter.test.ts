@@ -14,6 +14,13 @@ suite("file filter", () => {
     assert.strictEqual(shouldScanPath("/repo/dist/extension.js.map"), false);
   });
 
+  test("keeps Cursor and MCP surface files", () => {
+    assert.strictEqual(shouldScanPath("/repo/.cursor/mcp.json"), true);
+    assert.strictEqual(shouldScanPath("/repo/.cursor/rules/team.mdc"), true);
+    assert.strictEqual(shouldScanPath("/repo/.cursor/skills/demo/SKILL.md"), true);
+    assert.strictEqual(shouldScanPath("/repo/.cursor/hooks.json"), true);
+  });
+
   test("skips oversized buffers", () => {
     assert.strictEqual(shouldScanContents("/repo/src/app.ts", 12), true);
     assert.strictEqual(shouldScanContents("/repo/src/app.ts", MAX_SCAN_CHARS + 1), false);
