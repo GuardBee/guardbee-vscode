@@ -1,6 +1,6 @@
 # GuardBee for VS Code
 
-Review GuardBee findings in the editor, and run GuardBee dashboard scans from the sidebar.
+Review GuardBee findings in the editor, run dashboard jobs from the sidebar, and let Cursor or VS Code agents check code before saving.
 
 ## Features
 

@@ -2,7 +2,7 @@
   "name": "guardbee-vscode",
   "displayName": "GuardBee",
   "icon": "media/icon.png",
-  "description": "Review GuardBee findings in the editor and run dashboard scans from the sidebar.",
+  "description": "Review findings in the editor, run dashboard jobs from the sidebar, and let agents check code before saving.",
   "version": "0.3.0",
   "publisher": "guardbee-ai",
   "license": "MIT",
@@ -25,7 +25,8 @@
   "keywords": [
     "guardbee",
     "linter",
-    "diagnostics"
+    "diagnostics",
+    "chat"
   ],
   "galleryBanner": {
     "color": "#0B1C2C",
