@@ -11,6 +11,7 @@ const SEVERITY_TO_VSCODE: Record<Severity, vscode.DiagnosticSeverity> = {
 export class DiagnosticsManager {
   readonly collection: vscode.DiagnosticCollection;
   private readonly byFile = new Map<string, NormalizedFinding[]>();
+  private readonly findingByDiagnostic = new WeakMap<vscode.Diagnostic, NormalizedFinding>();
 
   constructor() {
     this.collection = vscode.languages.createDiagnosticCollection("guardbee");
@@ -18,7 +19,12 @@ export class DiagnosticsManager {
 
   setForDocument(uri: vscode.Uri, findings: NormalizedFinding[]): void {
     this.byFile.set(uri.fsPath, findings);
-    this.collection.set(uri, findings.map(toDiagnostic));
+    const diagnostics = findings.map((finding) => {
+      const diagnostic = toDiagnostic(finding);
+      this.findingByDiagnostic.set(diagnostic, finding);
+      return diagnostic;
+    });
+    this.collection.set(uri, diagnostics);
   }
 
   clearForDocument(uri: vscode.Uri): void {
@@ -26,8 +32,22 @@ export class DiagnosticsManager {
     this.collection.delete(uri);
   }
 
+  getForDocument(uri: vscode.Uri): NormalizedFinding[] {
+    return this.byFile.get(uri.fsPath) ?? [];
+  }
+
+  getFinding(diagnostic: vscode.Diagnostic): NormalizedFinding | undefined {
+    return this.findingByDiagnostic.get(diagnostic);
+  }
+
   getAllFindings(): Map<string, NormalizedFinding[]> {
     return this.byFile;
+  }
+
+  count(): number {
+    let total = 0;
+    for (const findings of this.byFile.values()) total += findings.length;
+    return total;
   }
 
   clearAll(): void {

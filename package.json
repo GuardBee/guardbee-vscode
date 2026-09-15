@@ -3,7 +3,7 @@
   "displayName": "GuardBee",
   "icon": "media/icon.png",
   "description": "Review GuardBee findings in the editor and run dashboard scans from the sidebar.",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "publisher": "guardbee-ai",
   "license": "MIT",
   "homepage": "https://github.com/GuardBee/guardbee-vscode#readme",
@@ -38,27 +38,38 @@
     "commands": [
       {
         "command": "guardbee.scanCurrentFile",
-        "title": "GuardBee: Scan Current File"
+        "title": "GuardBee: Scan Current File",
+        "icon": "$(file)"
       },
       {
         "command": "guardbee.scanWorkspace",
-        "title": "GuardBee: Scan Workspace"
+        "title": "GuardBee: Scan Workspace",
+        "icon": "$(folder)"
       },
       {
         "command": "guardbee.connect",
-        "title": "GuardBee: Connect Account"
+        "title": "GuardBee: Connect Account",
+        "icon": "$(plug)"
       },
       {
         "command": "guardbee.disconnect",
-        "title": "GuardBee: Disconnect"
+        "title": "GuardBee: Disconnect",
+        "icon": "$(debug-disconnect)"
       },
       {
         "command": "guardbee.triggerRemoteScan",
-        "title": "GuardBee: Trigger Remote Scan"
+        "title": "GuardBee: Trigger Remote Scan",
+        "icon": "$(play)"
       },
       {
         "command": "guardbee.showRecentScans",
-        "title": "GuardBee: Show Recent Scans"
+        "title": "GuardBee: Show Recent Scans",
+        "icon": "$(history)"
+      },
+      {
+        "command": "guardbee.openDashboard",
+        "title": "GuardBee: Open Dashboard",
+        "icon": "$(link-external)"
       }
     ],
     "configuration": {
@@ -112,6 +123,61 @@
         {
           "id": "guardbeeRemoteScans",
           "name": "Remote Scans"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "guardbeeLocalFindings",
+        "contents": "No local findings yet. Save a file or run a scan.\n[Scan Current File](command:guardbee.scanCurrentFile)\n[Scan Workspace](command:guardbee.scanWorkspace)"
+      },
+      {
+        "view": "guardbeeRemoteScans",
+        "contents": "Connect your GuardBee account to run dashboard scans.\n[Connect Account](command:guardbee.connect)\n[Open Dashboard](command:guardbee.openDashboard)",
+        "when": "!guardbee.connected"
+      },
+      {
+        "view": "guardbeeRemoteScans",
+        "contents": "No remote scans loaded.\n[Run Remote Scan](command:guardbee.triggerRemoteScan)\n[Show Recent Scans](command:guardbee.showRecentScans)",
+        "when": "guardbee.connected"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "guardbee.scanCurrentFile",
+          "when": "view == guardbeeLocalFindings",
+          "group": "navigation@1"
+        },
+        {
+          "command": "guardbee.scanWorkspace",
+          "when": "view == guardbeeLocalFindings",
+          "group": "navigation@2"
+        },
+        {
+          "command": "guardbee.connect",
+          "when": "view == guardbeeRemoteScans && !guardbee.connected",
+          "group": "navigation@1"
+        },
+        {
+          "command": "guardbee.triggerRemoteScan",
+          "when": "view == guardbeeRemoteScans && guardbee.connected",
+          "group": "navigation@1"
+        },
+        {
+          "command": "guardbee.showRecentScans",
+          "when": "view == guardbeeRemoteScans && guardbee.connected",
+          "group": "navigation@2"
+        },
+        {
+          "command": "guardbee.disconnect",
+          "when": "view == guardbeeRemoteScans && guardbee.connected",
+          "group": "navigation@3"
+        },
+        {
+          "command": "guardbee.openDashboard",
+          "when": "view == guardbeeRemoteScans",
+          "group": "navigation@4"
         }
       ]
     }

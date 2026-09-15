@@ -39,6 +39,7 @@ export class LocalFindingsProvider implements vscode.TreeDataProvider<Node> {
     const item = new vscode.TreeItem(f.patternName, vscode.TreeItemCollapsibleState.None);
     item.description = `${f.scanner} · ${f.severity} · line ${f.line}`;
     item.iconPath = new vscode.ThemeIcon(severityIcon(f.severity));
+    item.tooltip = [f.patternName, f.recommendation, `${f.scanner} · ${f.patternId}`].filter(Boolean).join("\n");
     item.command = {
       command: "vscode.open",
       title: "Open",

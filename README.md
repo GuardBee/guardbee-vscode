@@ -15,11 +15,26 @@ Review GuardBee findings in the editor, and run GuardBee dashboard scans from th
 
 ## Local findings
 
-Runs automatically on save (configurable via `guardbee.scanOnSave`), or manually via **GuardBee: Scan Current File** / **GuardBee: Scan Workspace**.
+Runs automatically on save (configurable via `guardbee.scanOnSave`), or from the GuardBee sidebar / **GuardBee: Scan Current File** / **GuardBee: Scan Workspace**.
+
+Findings appear as editor diagnostics. Hover for the recommendation, then use a Quick Fix (lightbulb) to:
+
+- insert `// guardbee-disable-next-line` (or `#` / `<!-- -->` depending on language)
+- add the match to the workspace `guardbee.yml` allowlist
+
+You can also suppress inline:
+
+```ts
+// guardbee-disable-next-line
+const demo = "example";
+
+const demo2 = "example"; // guardbee-disable-line
+```
 
 Optional `guardbee.yml` in the workspace root can exclude paths and allowlist known test values.
 
 Settings: `guardbee.enabledScanners`, `guardbee.scanOnSave`, `guardbee.severityThreshold`.
+The status bar shows the current finding count; click it to focus Local Findings.
 
 ## Dashboard scans
 

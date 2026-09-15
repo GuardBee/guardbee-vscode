@@ -7,6 +7,7 @@ const COMMANDS = [
   "guardbee.disconnect",
   "guardbee.triggerRemoteScan",
   "guardbee.showRecentScans",
+  "guardbee.openDashboard",
 ] as const;
 
 class EmptyTree implements vscode.TreeDataProvider<vscode.TreeItem> {
