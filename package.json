@@ -3,7 +3,7 @@
   "displayName": "GuardBee",
   "icon": "media/icon.png",
   "description": "Review GuardBee findings in the editor and run dashboard scans from the sidebar.",
-  "version": "0.1.0",
+  "version": "0.1.4",
   "publisher": "guardbee-ai",
   "license": "MIT",
   "homepage": "https://github.com/GuardBee/guardbee-vscode#readme",
@@ -123,6 +123,7 @@
     "pretest": "npm run compile && npm run compile-tests",
     "test": "vscode-test",
     "package": "node scripts/package-vsix.js",
+    "package:stub": "node scripts/package-vsix.js --stub",
     "publish:marketplace": "node scripts/package-vsix.js --publish",
     "vscode:prepublish": "npm run compile"
   },

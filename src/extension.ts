@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { scanTextWithAll } from "./scanners/adapters";
 import { filterFindings, isExcluded, loadGuardbeeConfig } from "./scanners/config";
 import { runWorkspaceScan } from "./scanners/workspaceScan";
-import { NormalizedFinding, ScannerId, Severity } from "./scanners/types";
+import { NormalizedFinding, ScannerId, Severity, ALL_SCANNER_IDS } from "./scanners/types";
 import { DiagnosticsManager } from "./diagnostics/manager";
 import { LocalFindingsProvider } from "./views/localFindingsProvider";
 import { RemoteScansProvider } from "./views/remoteScansProvider";
@@ -16,14 +16,8 @@ function getWorkspaceRoot(): string | undefined {
 }
 
 function getEnabledScanners(): ScannerId[] {
-  return vscode.workspace
-    .getConfiguration("guardbee")
-    .get<ScannerId[]>("enabledScanners", [
-      "secret-scanner",
-      "ai-code-scanner",
-      "mcp-server-auditor",
-      "prompt-injection-scanner",
-    ]);
+  const configured = vscode.workspace.getConfiguration("guardbee").get<ScannerId[]>("enabledScanners");
+  return configured && configured.length > 0 ? configured : ALL_SCANNER_IDS;
 }
 
 function getSeverityThreshold(): Severity {

@@ -1,4 +1,4 @@
-import { NormalizedFinding, ScannerId } from "./types";
+import { NormalizedFinding, ScannerId, ID } from "./types";
 
 type RawFinding = {
   patternId: string;
@@ -18,16 +18,19 @@ type ScannerModule = { scanText: (text: string, filePath?: string) => RawFinding
 // The @guardbee/mcp-* scanner packages are ESM-only; dynamic import() keeps them
 // loadable from this CJS-bundled extension host code.
 function importScanner(scanner: ScannerId): Promise<ScannerModule> {
-  switch (scanner) {
-    case "secret-scanner":
-      return import("@guardbee/mcp-secret-scanner") as unknown as Promise<ScannerModule>;
-    case "ai-code-scanner":
-      return import("@guardbee/mcp-ai-code-scanner") as unknown as Promise<ScannerModule>;
-    case "mcp-server-auditor":
-      return import("@guardbee/mcp-server-auditor") as unknown as Promise<ScannerModule>;
-    case "prompt-injection-scanner":
-      return import("@guardbee/mcp-prompt-injection-scanner") as unknown as Promise<ScannerModule>;
+  if (scanner === ID.secret) {
+    return import("@guardbee/mcp-secret-scanner") as unknown as Promise<ScannerModule>;
   }
+  if (scanner === ID.aiCode) {
+    return import("@guardbee/mcp-ai-code-scanner") as unknown as Promise<ScannerModule>;
+  }
+  if (scanner === ID.mcp) {
+    return import("@guardbee/mcp-server-auditor") as unknown as Promise<ScannerModule>;
+  }
+  if (scanner === ID.prompt) {
+    return import("@guardbee/mcp-prompt-injection-scanner") as unknown as Promise<ScannerModule>;
+  }
+  throw new Error(`Unknown scanner: ${scanner}`);
 }
 
 const moduleCache = new Map<ScannerId, Promise<ScannerModule>>();

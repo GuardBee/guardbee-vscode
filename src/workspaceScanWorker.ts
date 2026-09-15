@@ -1,4 +1,4 @@
-import { ScannerId } from "./scanners/types";
+import { ScannerId, ID } from "./scanners/types";
 
 type StartMessage = {
   type: "start";
@@ -29,16 +29,19 @@ type ScanDirModule = {
 // The @guardbee/mcp-* scanner packages are ESM-only; dynamic import() keeps them
 // loadable from this CJS-bundled forked worker.
 function importScanner(scanner: ScannerId): Promise<ScanDirModule> {
-  switch (scanner) {
-    case "secret-scanner":
-      return import("@guardbee/mcp-secret-scanner") as unknown as Promise<ScanDirModule>;
-    case "ai-code-scanner":
-      return import("@guardbee/mcp-ai-code-scanner") as unknown as Promise<ScanDirModule>;
-    case "mcp-server-auditor":
-      return import("@guardbee/mcp-server-auditor") as unknown as Promise<ScanDirModule>;
-    case "prompt-injection-scanner":
-      return import("@guardbee/mcp-prompt-injection-scanner") as unknown as Promise<ScanDirModule>;
+  if (scanner === ID.secret) {
+    return import("@guardbee/mcp-secret-scanner") as unknown as Promise<ScanDirModule>;
   }
+  if (scanner === ID.aiCode) {
+    return import("@guardbee/mcp-ai-code-scanner") as unknown as Promise<ScanDirModule>;
+  }
+  if (scanner === ID.mcp) {
+    return import("@guardbee/mcp-server-auditor") as unknown as Promise<ScanDirModule>;
+  }
+  if (scanner === ID.prompt) {
+    return import("@guardbee/mcp-prompt-injection-scanner") as unknown as Promise<ScanDirModule>;
+  }
+  throw new Error(`Unknown scanner: ${scanner}`);
 }
 
 process.on("message", async (msg: StartMessage) => {

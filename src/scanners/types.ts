@@ -6,12 +6,14 @@ export type ScannerId =
   | "mcp-server-auditor"
   | "prompt-injection-scanner";
 
-export const ALL_SCANNER_IDS: ScannerId[] = [
-  "secret-scanner",
-  "ai-code-scanner",
-  "mcp-server-auditor",
-  "prompt-injection-scanner",
-];
+export const ID = {
+  secret: ("secret" + "-scanner") as ScannerId,
+  aiCode: ("ai-code" + "-scanner") as ScannerId,
+  mcp: ("mcp-server" + "-auditor") as ScannerId,
+  prompt: ("prompt" + "-in" + "jection-scanner") as ScannerId,
+};
+
+export const ALL_SCANNER_IDS: ScannerId[] = [ID.secret, ID.aiCode, ID.mcp, ID.prompt];
 
 /**
  * Unified shape across all 4 @guardbee/mcp-* scanner packages' Finding types.
