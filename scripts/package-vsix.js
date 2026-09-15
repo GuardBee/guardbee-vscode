@@ -51,7 +51,9 @@ if (status === 0) {
   fs.writeFileSync(pkgPath, `${JSON.stringify(slimManifest(JSON.parse(original)), null, 2)}\n`);
   try {
     const vsce = path.join(root, "node_modules", ".bin", "vsce");
-    status = run(vsce, [publish ? "publish" : "package", "--no-dependencies"]);
+    const args = [publish ? "publish" : "package", "--no-dependencies"];
+    if (publish) args.push("--skip-duplicate");
+    status = run(vsce, args);
   } finally {
     fs.writeFileSync(pkgPath, original);
   }

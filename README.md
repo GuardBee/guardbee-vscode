@@ -69,3 +69,21 @@ Remote findings currently don't include file/line locations (dashboard jobs targ
 - `npm run watch` — incremental esbuild rebuild
 - `npm test` — extension test suite via `@vscode/test-electron`
 - `npm run package` — produce a `.vsix`
+- `npm run publish:marketplace` — CLI publish (needs a Marketplace PAT; optional)
+
+## Release
+
+You do **not** need an Azure DevOps PAT. The usual path:
+
+1. Bump `version` in `package.json` and commit.
+2. Tag and push:
+
+```bash
+git tag v0.3.1
+git push origin v0.3.1
+```
+
+3. GitHub Actions builds the `.vsix` and attaches it to the GitHub Release.
+4. Open [publisher management](https://marketplace.visualstudio.com/manage/publishers/guardbee-ai), choose GuardBee → **Update**, upload that `.vsix`.
+
+To publish from the CLI later you still need an [Azure DevOps organization](https://dev.azure.com) on the same Microsoft account as the publisher, then **User settings → Personal access tokens → New Token** with Organization **All accessible organizations** and **Marketplace → Manage**. Many personal accounts never see that page until an org exists.
