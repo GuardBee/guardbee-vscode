@@ -5,6 +5,7 @@ Review GuardBee findings in the editor, and run GuardBee dashboard scans from th
 ## Features
 
 - **Local findings** — analyze the current file or workspace on save (or on demand). Results appear as editor diagnostics and in the Local Findings view.
+- **Agent tools** — Cursor/VS Code agents can scan a file, scan the workspace, or check unsaved code before saving (`#guardbeeScanFile`, `#guardbeeScanWorkspace`, `#guardbeeCheckCode`, or `@guardbee` in chat).
 - **Dashboard scans** — start a scan from the GuardBee dashboard and browse results in the Remote Scans view.
 
 ## Setup
@@ -35,6 +36,20 @@ Optional `guardbee.yml` in the workspace root can exclude paths and allowlist kn
 
 Settings: `guardbee.enabledScanners`, `guardbee.scanOnSave`, `guardbee.severityThreshold`.
 The status bar shows the current finding count; click it to focus Local Findings.
+
+## Agent tools
+
+In Cursor/VS Code agent chat, GuardBee registers three tools (also referenceable with `#`):
+
+| Tool | When to use |
+| --- | --- |
+| `#guardbeeScanFile` | Scan the current file or a path |
+| `#guardbeeScanWorkspace` | Scan the open folder (optional `credential` filter) |
+| `#guardbeeCheckCode` | Check generated/unsaved code before saving |
+
+Or chat with **`@guardbee`** / `@guardbee /file` / `@guardbee /workspace`.
+
+Tools return locations and recommendations only — they do not send matched credential values to the model. Blocking (critical/high) findings set `canProceed` to false.
 
 ## Dashboard scans
 

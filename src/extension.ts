@@ -1,42 +1,22 @@
-import { readFileSync } from "fs";
 import * as vscode from "vscode";
 import { GuardBeeCodeActionProvider } from "./actions/codeActions";
 import { registerFindingHover } from "./actions/hover";
 import { DiagnosticsManager } from "./diagnostics/manager";
+import { registerChatParticipant } from "./lm/chat";
+import { registerLanguageModelTools } from "./lm/tools";
 import { GuardbeeApiError } from "./remote/apiClient";
 import { clearApiKey, getApiKey, setApiKey } from "./remote/auth";
 import { fetchFindings, listBrands, listScans, pollScan, triggerScan } from "./remote/scan";
 import { RemoteScan } from "./remote/types";
-import { addAllowlistEntry, filterFindings, isExcluded, loadGuardbeeConfig } from "./scanners/config";
-import { DEFAULT_WORKSPACE_EXCLUDES, shouldScanContents, shouldScanPath } from "./scanners/fileFilter";
-import { scanTextWithAll } from "./scanners/adapters";
-import { disableNextLineComment, filterSuppressedFindings, isSuppressedAt } from "./scanners/suppress";
-import { ALL_SCANNER_IDS, NormalizedFinding, ScannerId, Severity } from "./scanners/types";
-import { runWorkspaceScan } from "./scanners/workspaceScan";
+import { addAllowlistEntry } from "./scanners/config";
+import { NormalizedFinding, ScannerId } from "./scanners/types";
+import { disableNextLineComment } from "./scanners/suppress";
+import { getWorkspaceRoot, scanDocument, scanWorkspace } from "./scanners/run";
 import { GuardBeeStatusBar } from "./statusBar";
 import { LocalFindingsProvider } from "./views/localFindingsProvider";
 import { RemoteScansProvider } from "./views/remoteScansProvider";
 
 const DASHBOARD_URL = "https://app.guardbee.ai";
-
-function getWorkspaceRoot(): string | undefined {
-  return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-}
-
-function getEnabledScanners(): ScannerId[] {
-  const configured = vscode.workspace.getConfiguration("guardbee").get<ScannerId[]>("enabledScanners");
-  return configured && configured.length > 0 ? configured : ALL_SCANNER_IDS;
-}
-
-function getSeverityThreshold(): Severity {
-  return vscode.workspace.getConfiguration("guardbee").get<Severity>("severityThreshold", "low");
-}
-
-function relativePath(filePath: string): string {
-  const workspaceRoot = getWorkspaceRoot();
-  if (!workspaceRoot) return filePath;
-  return filePath.replace(workspaceRoot, "").replace(/^[\\/]/, "");
-}
 
 export function activate(context: vscode.ExtensionContext): void {
   const diagnostics = new DiagnosticsManager();
@@ -64,32 +44,18 @@ export function activate(context: vscode.ExtensionContext): void {
     localFindingsProvider.refresh();
   }
 
-  function applyDocumentFilters(document: vscode.TextDocument, findings: NormalizedFinding[]): NormalizedFinding[] {
-    const config = loadGuardbeeConfig(getWorkspaceRoot());
-    const thresholded = filterFindings(findings, getSeverityThreshold(), config);
-    const lines = document.getText().split(/\r?\n/);
-    return thresholded.filter((finding) => finding.line <= 0 || !isSuppressedAt(lines, finding.line, finding.scanner));
-  }
-
-  async function scanDocument(document: vscode.TextDocument): Promise<void> {
-    if (document.uri.scheme !== "file") return;
-    if (!shouldScanContents(document.uri.fsPath, document.getText().length)) {
-      diagnostics.clearForDocument(document.uri);
-      await syncUi();
-      return;
-    }
-
-    const config = loadGuardbeeConfig(getWorkspaceRoot());
-    const scanners = getEnabledScanners().filter((s) => !isExcluded(relativePath(document.uri.fsPath), s, config));
-    const raw = await scanTextWithAll(scanners, document.getText(), document.uri.fsPath);
-    diagnostics.setForDocument(document.uri, applyDocumentFilters(document, raw));
+  async function scanAndSync(document: vscode.TextDocument): Promise<void> {
+    await scanDocument(document, diagnostics);
     await syncUi();
   }
+
+  registerLanguageModelTools(context, diagnostics, syncUi);
+  registerChatParticipant(context, diagnostics, syncUi);
 
   context.subscriptions.push(
     vscode.workspace.onDidSaveTextDocument((doc) => {
       if (vscode.workspace.getConfiguration("guardbee").get<boolean>("scanOnSave", true)) {
-        scanDocument(doc).catch((err) => vscode.window.showErrorMessage(`GuardBee scan failed: ${err.message}`));
+        scanAndSync(doc).catch((err) => vscode.window.showErrorMessage(`GuardBee scan failed: ${err.message}`));
       }
     })
   );
@@ -101,12 +67,12 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.window.showWarningMessage("GuardBee: no active file to scan.");
         return;
       }
-      await scanDocument(editor.document);
+      await scanAndSync(editor.document);
       vscode.window.showInformationMessage("GuardBee: scan complete.");
     }),
     vscode.commands.registerCommand("guardbee.rescanActive", async () => {
       const editor = vscode.window.activeTextEditor;
-      if (editor) await scanDocument(editor.document);
+      if (editor) await scanAndSync(editor.document);
     }),
     vscode.commands.registerCommand(
       "guardbee.ignoreFinding",
@@ -124,25 +90,17 @@ export function activate(context: vscode.ExtensionContext): void {
         edit.insert(uri, new vscode.Position(line0, 0), `${indent}${comment}\n`);
         const applied = await vscode.workspace.applyEdit(edit);
         if (!applied) return;
-        await scanDocument(await vscode.workspace.openTextDocument(uri));
+        await scanAndSync(await vscode.workspace.openTextDocument(uri));
       }
     )
   );
 
   context.subscriptions.push(
     vscode.commands.registerCommand("guardbee.scanWorkspace", async () => {
-      const root = getWorkspaceRoot();
-      if (!root) {
+      if (!getWorkspaceRoot()) {
         vscode.window.showWarningMessage("GuardBee: open a folder to scan the workspace.");
         return;
       }
-
-      const config = loadGuardbeeConfig(root);
-      const scanners = getEnabledScanners();
-      const threshold = getSeverityThreshold();
-      const mergedExclude = Array.from(
-        new Set([...DEFAULT_WORKSPACE_EXCLUDES, ...scanners.flatMap((s) => config[s]?.exclude ?? [])])
-      );
 
       await vscode.window.withProgress(
         {
@@ -151,40 +109,14 @@ export function activate(context: vscode.ExtensionContext): void {
           cancellable: true,
         },
         async (progress, token) => {
-          const handle = runWorkspaceScan(root, scanners, mergedExclude, (p) => {
-            progress.report({ message: `${p.scanner}: ${p.scannedFiles} file(s) scanned` });
-          });
-          token.onCancellationRequested(() => handle.cancel());
-
           try {
-            const raw = await handle.promise;
-            const filtered = filterFindings(raw, threshold, config);
-            const lineCache = new Map<string, string[] | undefined>();
-            const suppressed = filterSuppressedFindings(filtered, (file) => {
-              if (!lineCache.has(file)) {
-                try {
-                  lineCache.set(file, readFileSync(file, "utf8").split(/\r?\n/));
-                } catch {
-                  lineCache.set(file, undefined);
-                }
-              }
-              return lineCache.get(file);
+            const findings = await scanWorkspace(diagnostics, undefined, token, (message) => {
+              progress.report({ message });
             });
-
-            diagnostics.clearAll();
-            const byFile = new Map<string, NormalizedFinding[]>();
-            for (const finding of suppressed) {
-              if (!finding.file || !shouldScanPath(finding.file)) continue;
-              const list = byFile.get(finding.file) ?? [];
-              list.push(finding);
-              byFile.set(finding.file, list);
-            }
-            for (const [filePath, findings] of byFile) {
-              diagnostics.setForDocument(vscode.Uri.file(filePath), findings);
-            }
             await syncUi();
+            const files = new Set(findings.map((f) => f.file).filter(Boolean));
             vscode.window.showInformationMessage(
-              `GuardBee: workspace scan complete — ${suppressed.length} finding(s) in ${byFile.size} file(s).`
+              `GuardBee: workspace scan complete — ${findings.length} finding(s) in ${files.size} file(s).`
             );
           } catch (err) {
             if (!token.isCancellationRequested) {
@@ -231,7 +163,7 @@ export function activate(context: vscode.ExtensionContext): void {
         const path = addAllowlistEntry(root, finding.scanner, finding.match);
         vscode.window.showInformationMessage(`GuardBee: allowlist updated (${path}).`);
         const editor = vscode.window.activeTextEditor;
-        if (editor) await scanDocument(editor.document);
+        if (editor) await scanAndSync(editor.document);
         else await syncUi();
       } catch (err) {
         vscode.window.showErrorMessage(`GuardBee: ${(err as Error).message}`);

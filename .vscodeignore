@@ -4,6 +4,7 @@
 src/**
 scripts/**
 test/**
+examples/**
 out/**
 node_modules/**
 .gitignore

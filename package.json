@@ -3,7 +3,7 @@
   "displayName": "GuardBee",
   "icon": "media/icon.png",
   "description": "Review GuardBee findings in the editor and run dashboard scans from the sidebar.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "guardbee-ai",
   "license": "MIT",
   "homepage": "https://github.com/GuardBee/guardbee-vscode#readme",
@@ -15,10 +15,11 @@
     "url": "https://github.com/GuardBee/guardbee-vscode/issues"
   },
   "engines": {
-    "vscode": "^1.85.0"
+    "vscode": "^1.95.0"
   },
   "categories": [
     "Linters",
+    "Chat",
     "Other"
   ],
   "keywords": [
@@ -180,7 +181,127 @@
           "group": "navigation@4"
         }
       ]
-    }
+    },
+    "languageModelTools": [
+      {
+        "name": "guardbee_scan_file",
+        "displayName": "GuardBee: Scan File",
+        "toolReferenceName": "guardbeeScanFile",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(file)",
+        "userDescription": "Scan a file with GuardBee and show findings in the editor.",
+        "modelDescription": "Scan a source file with GuardBee local analyzers (credentials, AI-code patterns, MCP handlers, prompt-override phrases). Use after writing or editing a file, or when the user asks to scan this file. Returns finding count, severity breakdown, whether it is safe to proceed, and finding locations with recommendations. Does not return matched secret values. Prefer an absolute file path. If path is omitted, scan the active editor. Do not use this for whole-workspace questions.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "Absolute path of the file to scan. If omitted, the active editor is scanned."
+            },
+            "scanners": {
+              "description": "Optional analyzer filter. Use credential, ai-code, mcp, and/or prompt. Omit to run all enabled analyzers.",
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "name": "guardbee_scan_workspace",
+        "displayName": "GuardBee: Scan Workspace",
+        "toolReferenceName": "guardbeeScanWorkspace",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(folder)",
+        "userDescription": "Scan the open workspace with GuardBee.",
+        "modelDescription": "Scan the entire open workspace with GuardBee local analyzers. Use when the user asks whether the repo has credential leaks or other GuardBee findings, or to check all files. This can take a while on large repos. Returns a summary plus the highest-severity findings (locations and recommendations only, no secret values). To check a single file, use guardbee_scan_file instead. To check unsaved proposed code, use guardbee_check_code.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "scanners": {
+              "description": "Optional analyzer filter. Use credential to look only for leaked credentials. Other values: ai-code, mcp, prompt. Omit to run all enabled analyzers.",
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "name": "guardbee_check_code",
+        "displayName": "GuardBee: Check Code",
+        "toolReferenceName": "guardbeeCheckCode",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(shield)",
+        "userDescription": "Check proposed or unsaved code with GuardBee before saving.",
+        "modelDescription": "Scan a code string with GuardBee before saving or applying a patch. Use this after generating or modifying code and before writing it to disk. Pass the full file contents in `code`. Optional `path` helps pick language-aware ignores and editor diagnostics. Returns whether it is safe to proceed (canProceed=false means fix blocking findings first). Does not return matched secret values.",
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "code"
+          ],
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "Full file contents to check. Do not omit generated code; pass the text that would be saved."
+            },
+            "path": {
+              "type": "string",
+              "description": "Absolute path the code will be saved to, if known."
+            },
+            "scanners": {
+              "description": "Optional analyzer filter: credential, ai-code, mcp, prompt.",
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    ],
+    "chatParticipants": [
+      {
+        "id": "guardbee.chat",
+        "fullName": "GuardBee",
+        "name": "guardbee",
+        "description": "Scan the current file or workspace with GuardBee",
+        "isSticky": true,
+        "commands": [
+          {
+            "name": "file",
+            "description": "Scan the active file"
+          },
+          {
+            "name": "workspace",
+            "description": "Scan the open workspace"
+          }
+        ]
+      }
+    ]
   },
   "scripts": {
     "compile": "node esbuild.js",
@@ -200,7 +321,7 @@
     "@guardbee/mcp-server-auditor": "^0.1.2",
     "@types/mocha": "^10.0.7",
     "@types/node": "^20.14.0",
-    "@types/vscode": "^1.85.0",
+    "@types/vscode": "^1.137.0",
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.0",
     "@vscode/vsce": "^3.2.1",
