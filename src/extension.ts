@@ -5,9 +5,19 @@ import { DiagnosticsManager } from "./diagnostics/manager";
 import { registerChatParticipant } from "./lm/chat";
 import { registerLanguageModelTools } from "./lm/tools";
 import { GuardbeeApiError } from "./remote/apiClient";
-import { clearApiKey, getApiKey, setApiKey } from "./remote/auth";
+import { getDashboardOrigin } from "./remote/config";
+import {
+  disconnectAccount,
+  getApiKey,
+  getStoredWorkspace,
+  setStoredWorkspace,
+} from "./remote/auth";
+import { connectAccount, registerConnectUriHandler } from "./remote/connect";
+import { dashboardFindingUrl, dashboardScanUrl } from "./remote/dashboard";
+import { pushLocalFindings } from "./remote/push";
 import { fetchFindings, listBrands, listScans, pollScan, triggerScan } from "./remote/scan";
-import { RemoteScan } from "./remote/types";
+import { RemoteFinding } from "./remote/types";
+import { fetchWorkspace } from "./remote/workspace";
 import { addAllowlistEntry } from "./scanners/config";
 import { NormalizedFinding, ScannerId } from "./scanners/types";
 import { disableNextLineComment } from "./scanners/suppress";
@@ -16,8 +26,6 @@ import { GuardBeeStatusBar } from "./statusBar";
 import { AgentSurfaceProvider } from "./views/agentSurfaceProvider";
 import { LocalFindingsProvider } from "./views/localFindingsProvider";
 import { RemoteScansProvider } from "./views/remoteScansProvider";
-
-const DASHBOARD_URL = "https://app.guardbee.ai";
 
 export function activate(context: vscode.ExtensionContext): void {
   const diagnostics = new DiagnosticsManager();
@@ -43,9 +51,25 @@ export function activate(context: vscode.ExtensionContext): void {
   async function syncUi(): Promise<void> {
     const connected = Boolean(await getApiKey(context));
     await vscode.commands.executeCommand("setContext", "guardbee.connected", connected);
-    statusBar.update(diagnostics.count(), connected);
+    statusBar.update(diagnostics.count(), connected, getStoredWorkspace(context)?.name);
     localFindingsProvider.refresh();
     agentSurfaceProvider.refresh();
+  }
+
+  async function loadRecentScans(): Promise<void> {
+    const scans = await listScans(context);
+    const recent = scans.slice(0, 10);
+    const withFindings = await Promise.all(
+      recent.map(async (scan) => ({
+        scan,
+        findings: scan.status === "COMPLETED" ? await fetchFindings(context, scan.id).catch(() => []) : [],
+      }))
+    );
+    remoteScansProvider.setScans(withFindings);
+  }
+
+  async function openDashboardUrl(url: string): Promise<void> {
+    await vscode.env.openExternal(vscode.Uri.parse(url));
   }
 
   async function scanAndSync(document: vscode.TextDocument): Promise<void> {
@@ -165,15 +189,66 @@ export function activate(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("guardbee.connect", async () => {
-      await setApiKey(context);
-      await syncUi();
+      try {
+        const workspace = await connectAccount(context);
+        if (!workspace) return;
+        await syncUi();
+        await loadRecentScans().catch(() => undefined);
+        vscode.commands.executeCommand("guardbeeRemoteScans.focus").then(undefined, () => undefined);
+      } catch (err) {
+        handleRemoteError(err);
+      }
     }),
     vscode.commands.registerCommand("guardbee.disconnect", async () => {
-      await clearApiKey(context);
+      await disconnectAccount(context);
+      remoteScansProvider.setScans([]);
       await syncUi();
     }),
     vscode.commands.registerCommand("guardbee.openDashboard", () => {
-      vscode.env.openExternal(vscode.Uri.parse(DASHBOARD_URL));
+      const workspace = getStoredWorkspace(context);
+      const url = workspace ? `${getDashboardOrigin()}/scans` : getDashboardOrigin();
+      void openDashboardUrl(url);
+    }),
+    vscode.commands.registerCommand("guardbee.openRemoteScan", async (scanId?: string) => {
+      if (!scanId) return;
+      await openDashboardUrl(dashboardScanUrl(scanId, getDashboardOrigin()));
+    }),
+    vscode.commands.registerCommand("guardbee.openRemoteFinding", async (finding?: RemoteFinding) => {
+      if (!finding?.scanId) return;
+      await openDashboardUrl(dashboardFindingUrl(finding.scanId, finding.id, getDashboardOrigin()));
+    }),
+    vscode.commands.registerCommand("guardbee.pushLocalFindings", async () => {
+      const findings = Array.from(diagnostics.getAllFindings().values()).flat();
+      if (findings.length === 0) {
+        vscode.window.showWarningMessage("GuardBee: no local findings to send.");
+        return;
+      }
+      if (!(await getApiKey(context))) {
+        vscode.window
+          .showErrorMessage("GuardBee: connect an account to send findings to the dashboard.", "Connect Account")
+          .then((choice) => {
+            if (choice === "Connect Account") vscode.commands.executeCommand("guardbee.connect");
+          });
+        return;
+      }
+      try {
+        const result = await pushLocalFindings(context, findings, getWorkspaceRoot());
+        if (result.mode === "uploaded") {
+          const choice = await vscode.window.showInformationMessage(
+            `GuardBee: sent ${result.findingCount} finding(s) to the dashboard.`,
+            "Open Dashboard"
+          );
+          if (choice === "Open Dashboard") await openDashboardUrl(result.dashboardUrl);
+        } else {
+          const choice = await vscode.window.showInformationMessage(
+            `GuardBee: dashboard ingest is not enabled yet. Copied ${result.findingCount} redacted finding(s).`,
+            "Open Dashboard"
+          );
+          if (choice === "Open Dashboard") await openDashboardUrl(result.dashboardUrl);
+        }
+      } catch (err) {
+        handleRemoteError(err);
+      }
     }),
     vscode.commands.registerCommand("guardbee.focusFindings", () => {
       vscode.commands.executeCommand("guardbeeLocalFindings.focus").then(undefined, () => undefined);
@@ -259,7 +334,11 @@ export function activate(context: vscode.ExtensionContext): void {
             if (finalScan.status === "COMPLETED") {
               const findings = await fetchFindings(context, finalScan.id);
               remoteScansProvider.upsertScan(finalScan, findings);
-              vscode.window.showInformationMessage(`GuardBee: remote scan complete — ${findings.length} finding(s).`);
+              const choice = await vscode.window.showInformationMessage(
+                `GuardBee: remote scan complete — ${findings.length} finding(s).`,
+                "Open in Dashboard"
+              );
+              if (choice === "Open in Dashboard") await openDashboardUrl(dashboardScanUrl(finalScan.id, getDashboardOrigin()));
             } else {
               remoteScansProvider.upsertScan(finalScan, []);
               vscode.window.showWarningMessage(`GuardBee: remote scan ended with status ${finalScan.status}.`);
@@ -274,27 +353,30 @@ export function activate(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("guardbee.showRecentScans", async () => {
-      let scans: RemoteScan[];
       try {
-        scans = await listScans(context);
+        await loadRecentScans();
+        vscode.commands.executeCommand("guardbeeRemoteScans.focus").then(undefined, () => undefined);
       } catch (err) {
         handleRemoteError(err);
-        return;
       }
-
-      const recent = scans.slice(0, 10);
-      const withFindings = await Promise.all(
-        recent.map(async (scan) => ({
-          scan,
-          findings: scan.status === "COMPLETED" ? await fetchFindings(context, scan.id).catch(() => []) : [],
-        }))
-      );
-      remoteScansProvider.setScans(withFindings);
-      vscode.commands.executeCommand("guardbeeRemoteScans.focus").then(undefined, () => undefined);
     })
   );
 
-  void syncUi();
+  registerConnectUriHandler(context, async () => {
+    await syncUi();
+    await loadRecentScans().catch(() => undefined);
+  });
+
+  void (async () => {
+    if (await getApiKey(context)) {
+      try {
+        await setStoredWorkspace(context, await fetchWorkspace(context));
+      } catch {
+        // Keep the stored key; status bar still shows connected.
+      }
+    }
+    await syncUi();
+  })();
   if (vscode.workspace.getConfiguration("guardbee").get<boolean>("scanAgentSurfaceOnStartup", true)) {
     void scanAgentSurface(diagnostics)
       .then(() => syncUi())

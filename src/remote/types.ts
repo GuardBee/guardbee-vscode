@@ -32,6 +32,12 @@ export interface RemoteFinding {
   createdAt: string;
 }
 
+export interface RemoteWorkspace {
+  id: string;
+  name: string;
+  slug?: string;
+}
+
 export interface Envelope<T> {
   data: T;
 }

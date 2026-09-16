@@ -34,6 +34,12 @@ export class RemoteScansProvider implements vscode.TreeDataProvider<Node> {
       const item = new vscode.TreeItem(element.scan.url, vscode.TreeItemCollapsibleState.Collapsed);
       item.description = `${element.scan.status}${element.scan.score !== undefined ? ` · score ${element.scan.score}` : ""}`;
       item.iconPath = new vscode.ThemeIcon(statusIcon(element.scan.status));
+      item.tooltip = "Open this scan in the GuardBee dashboard";
+      item.command = {
+        command: "guardbee.openRemoteScan",
+        title: "Open in Dashboard",
+        arguments: [element.scan.id],
+      };
       return item;
     }
 
@@ -41,14 +47,12 @@ export class RemoteScansProvider implements vscode.TreeDataProvider<Node> {
     const item = new vscode.TreeItem(f.title, vscode.TreeItemCollapsibleState.None);
     item.description = f.severity;
     item.iconPath = new vscode.ThemeIcon(severityIcon(f.severity));
-    item.tooltip = f.description;
-    if (f.documentationUrl) {
-      item.command = {
-        command: "vscode.open",
-        title: "Open Documentation",
-        arguments: [vscode.Uri.parse(f.documentationUrl)],
-      };
-    }
+    item.tooltip = [f.title, f.description, f.recommendation].filter(Boolean).join("\n");
+    item.command = {
+      command: "guardbee.openRemoteFinding",
+      title: "Open in Dashboard",
+      arguments: [f],
+    };
     return item;
   }
 

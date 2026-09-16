@@ -1,14 +1,11 @@
 import * as vscode from "vscode";
 import { getApiKey } from "./auth";
+import { getBaseUrl } from "./config";
 
 export class GuardbeeApiError extends Error {
   constructor(message: string, readonly status: number) {
     super(message);
   }
-}
-
-function getBaseUrl(): string {
-  return vscode.workspace.getConfiguration("guardbee").get<string>("apiBaseUrl", "https://app.guardbee.ai/api/v1");
 }
 
 async function sleep(ms: number): Promise<void> {
@@ -25,7 +22,15 @@ export async function apiRequest<T>(
   if (!apiKey) {
     throw new GuardbeeApiError("No GuardBee account connected. Run 'GuardBee: Connect Account' first.", 401);
   }
+  return apiRequestWithToken<T>(apiKey, path, init, retriesLeft);
+}
 
+export async function apiRequestWithToken<T>(
+  apiKey: string,
+  path: string,
+  init: RequestInit = {},
+  retriesLeft = 3
+): Promise<T> {
   const url = `${getBaseUrl()}${path}`;
   const response = await fetch(url, {
     ...init,
@@ -40,7 +45,7 @@ export async function apiRequest<T>(
     const retryAfterHeader = response.headers.get("Retry-After") ?? response.headers.get("X-RateLimit-Reset");
     const waitMs = retryAfterHeader ? Math.max(1000, Number(retryAfterHeader) * 1000) : 5000;
     await sleep(waitMs);
-    return apiRequest<T>(context, path, init, retriesLeft - 1);
+    return apiRequestWithToken<T>(apiKey, path, init, retriesLeft - 1);
   }
 
   if (!response.ok) {

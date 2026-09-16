@@ -9,6 +9,9 @@ const COMMANDS = [
   "guardbee.triggerRemoteScan",
   "guardbee.showRecentScans",
   "guardbee.openDashboard",
+  "guardbee.pushLocalFindings",
+  "guardbee.openRemoteScan",
+  "guardbee.openRemoteFinding",
 ] as const;
 
 const TOOLS = ["guardbee_scan_file", "guardbee_scan_workspace", "guardbee_check_code", "guardbee_scan_agent_surface"] as const;

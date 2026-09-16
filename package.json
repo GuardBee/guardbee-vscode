@@ -3,7 +3,7 @@
   "displayName": "GuardBee",
   "icon": "media/icon.png",
   "description": "Review findings in the editor, run dashboard jobs from the sidebar, and let agents check code before saving.",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "publisher": "guardbee-ai",
   "license": "MIT",
   "homepage": "https://github.com/GuardBee/guardbee-vscode#readme",
@@ -77,6 +77,19 @@
         "command": "guardbee.openDashboard",
         "title": "GuardBee: Open Dashboard",
         "icon": "$(link-external)"
+      },
+      {
+        "command": "guardbee.pushLocalFindings",
+        "title": "GuardBee: Send Local Findings to Dashboard",
+        "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "guardbee.openRemoteScan",
+        "title": "GuardBee: Open Scan in Dashboard"
+      },
+      {
+        "command": "guardbee.openRemoteFinding",
+        "title": "GuardBee: Open Finding in Dashboard"
       }
     ],
     "configuration": {
@@ -114,6 +127,10 @@
           "type": "string",
           "default": "https://app.guardbee.ai/api/v1",
           "description": "GuardBee dashboard endpoint."
+        },
+        "guardbee.dashboardUrl": {
+          "type": "string",
+          "description": "GuardBee dashboard origin. Defaults to the host of guardbee.apiBaseUrl."
         }
       }
     },
@@ -145,7 +162,7 @@
     "viewsWelcome": [
       {
         "view": "guardbeeLocalFindings",
-        "contents": "No local findings yet. Save a file or run a scan.\n[Scan Current File](command:guardbee.scanCurrentFile)\n[Scan Workspace](command:guardbee.scanWorkspace)"
+        "contents": "No local findings yet. Save a file or run a scan.\n[Scan Current File](command:guardbee.scanCurrentFile)\n[Scan Workspace](command:guardbee.scanWorkspace)\n[Send to Dashboard](command:guardbee.pushLocalFindings)"
       },
       {
         "view": "guardbeeAgentSurface",
@@ -173,6 +190,11 @@
           "command": "guardbee.scanWorkspace",
           "when": "view == guardbeeLocalFindings",
           "group": "navigation@2"
+        },
+        {
+          "command": "guardbee.pushLocalFindings",
+          "when": "view == guardbeeLocalFindings",
+          "group": "navigation@3"
         },
         {
           "command": "guardbee.scanAgentSurface",
@@ -203,6 +225,16 @@
           "command": "guardbee.openDashboard",
           "when": "view == guardbeeRemoteScans",
           "group": "navigation@4"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "guardbee.openRemoteScan",
+          "when": "false"
+        },
+        {
+          "command": "guardbee.openRemoteFinding",
+          "when": "false"
         }
       ]
     },

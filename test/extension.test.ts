@@ -17,6 +17,7 @@ suite("GuardBee extension", () => {
       "guardbee.triggerRemoteScan",
       "guardbee.showRecentScans",
       "guardbee.openDashboard",
+      "guardbee.pushLocalFindings",
     ];
     for (const cmd of expected) {
       assert.ok(commands.includes(cmd), `expected command ${cmd} to be registered`);

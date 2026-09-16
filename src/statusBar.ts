@@ -9,9 +9,13 @@ export class GuardBeeStatusBar implements vscode.Disposable {
     this.item.show();
   }
 
-  update(findingCount: number, connected: boolean): void {
+  update(findingCount: number, connected: boolean, workspaceName?: string): void {
     this.item.text = findingCount > 0 ? `$(shield) GuardBee ${findingCount}` : "$(shield) GuardBee";
-    const account = connected ? "Account connected" : "Local analysis only";
+    const account = connected
+      ? workspaceName
+        ? `Connected to ${workspaceName}`
+        : "Account connected"
+      : "Local analysis only";
     this.item.tooltip = `${findingCount} finding(s)\n${account}\nClick to open Local Findings`;
     this.item.backgroundColor =
       findingCount > 0 ? new vscode.ThemeColor("statusBarItem.warningBackground") : undefined;

@@ -7,7 +7,7 @@ Review GuardBee findings in the editor, run dashboard jobs from the sidebar, and
 - **Local findings** — analyze the current file or workspace on save (or on demand). Results appear as editor diagnostics and in the Local Findings view.
 - **Cursor / MCP** — dedicated scan for `mcp.json`, `.cursor/rules`, agent skills, and hooks. Workspace directory walks skip hidden folders like `.cursor`, so this surface has its own command, sidebar view, and agent tool.
 - **Agent tools** — Cursor/VS Code agents can scan a file, scan the workspace, check unsaved code, or scan Cursor/MCP files (`#guardbeeScanFile`, `#guardbeeScanWorkspace`, `#guardbeeCheckCode`, `#guardbeeScanCursorMcp`, or `@guardbee` in chat).
-- **Dashboard scans** — start a scan from the GuardBee dashboard and browse results in the Remote Scans view.
+- **Dashboard scans** — connect from the editor, run dashboard jobs from the sidebar, click a remote finding to open it on the dashboard, and send local findings up (redacted).
 
 ## Setup
 
@@ -72,16 +72,18 @@ Tools return locations and recommendations only — they do not send matched cre
 
 ## Dashboard scans
 
-1. Create a credential on the [Developers page](https://app.guardbee.ai).
-2. Run **GuardBee: Connect Account** and paste it.
-3. Run **GuardBee: Trigger Remote Scan** to pick a Brand (or enter a URL). Results appear in Remote Scans when the job completes.
-4. Run **GuardBee: Show Recent Scans** to browse the last 10 jobs.
+1. Run **GuardBee: Connect Account**. A Developers page tab opens; copy a key and paste it. GuardBee checks `GET /workspaces` before storing the key.
+2. Run **GuardBee: Trigger Remote Scan** to pick a Brand (or enter a URL). When it finishes, **Open in Dashboard** jumps to that scan.
+3. Click a scan or finding in **Remote Scans** to open it on [app.guardbee.ai](https://app.guardbee.ai).
+4. Run **GuardBee: Send Local Findings to Dashboard** (or the Local Findings cloud icon) to POST a redacted summary. Matched secret values are never sent. If the dashboard does not yet accept IDE ingest (`POST /api/v1/ide/findings`), the same summary is copied so you can paste it.
+
+You can also finish connect from a `vscode://guardbee-ai.guardbee-vscode/connect?token=…` link.
 
 Ad-hoc URL scans that are not tied to a verified Brand must use a hostname that matches your account email domain.
 
 ### Known limitation
 
-Remote findings currently don't include file/line locations (dashboard jobs target live URLs, not source files), so they appear only in the Remote Scans view.
+Remote URL scans still have no source file/line (they target live sites). The editor opens the dashboard scan page instead.
 
 ## Development
 
