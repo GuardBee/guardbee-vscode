@@ -94,17 +94,23 @@ Remote URL scans still have no source file/line (they target live sites). The ed
 
 ## Release
 
-You do **not** need an Azure DevOps PAT. The usual path:
-
 1. Bump `version` in `package.json` and commit.
 2. Tag and push:
 
 ```bash
-git tag v0.3.1
-git push origin v0.3.1
+git tag v0.5.1
+git push origin v0.5.1
 ```
 
-3. GitHub Actions builds the `.vsix` and attaches it to the GitHub Release.
-4. Open [publisher management](https://marketplace.visualstudio.com/manage/publishers/guardbee-ai), choose GuardBee → **Update**, upload that `.vsix`.
+GitHub Actions builds the `.vsix`, attaches it to the GitHub Release, then publishes to Open VSX and the Visual Studio Marketplace when the matching secrets exist.
 
-To publish from the CLI later you still need an [Azure DevOps organization](https://dev.azure.com) on the same Microsoft account as the publisher, then **User settings → Personal access tokens → New Token** with Organization **All accessible organizations** and **Marketplace → Manage**. Many personal accounts never see that page until an org exists.
+Add these once under **Settings → Secrets and variables → Actions**:
+
+| Secret | Where to create it |
+| --- | --- |
+| `OVSX_PAT` | [Open VSX tokens](https://open-vsx.org/user-settings/tokens) |
+| `VSCE_PAT` | [Azure DevOps PAT](https://dev.azure.com/_usersSettings/tokens): Organization **All accessible organizations**, scope **Marketplace → Manage** |
+
+If a secret is missing, that store is skipped and the GitHub Release still publishes. `--skip-duplicate` ignores a version that is already on the store.
+
+Without `VSCE_PAT`, upload the Release VSIX at [publisher management](https://marketplace.visualstudio.com/manage/publishers/guardbee-ai) → GuardBee → **Update**. Many personal Microsoft accounts never see the Azure DevOps token page until an organization exists.
