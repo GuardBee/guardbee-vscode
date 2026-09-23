@@ -3,10 +3,10 @@
   "displayName": "GuardBee",
   "icon": "media/icon.png",
   "description": "Review findings in the editor, run dashboard jobs from the sidebar, and let agents check code before saving.",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "publisher": "guardbee-ai",
   "license": "MIT",
-  "homepage": "https://github.com/GuardBee/guardbee-vscode#readme",
+  "homepage": "https://guardbee.ai",
   "repository": {
     "type": "git",
     "url": "https://github.com/GuardBee/guardbee-vscode.git"
